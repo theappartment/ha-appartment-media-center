@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="it">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Showreel Mode Card — test locale</title>
+<style>body { margin: 0; background: #151717; font-family: Arial, sans-serif; } pre { color: white; padding: 20px; }</style>
+<showreel-mode-card></showreel-mode-card>
+<pre id="results">Test in corso…</pre>
+<script src="../custom_components/appartment_media_center/frontend/showreel-mode-card.js"></script>
+<script>
+(async () => {
+  const results = document.querySelector('#results');
+  let count = 0;
+  const assert = (value, message) => { if (!value) throw new Error(message); count++; };
+  const card = document.querySelector('showreel-mode-card');
+  const entityId = 'select.schermo';
+  const options = ['Automatico', 'Showreel video', 'Showreel foto', 'Schermo nero'];
+  let calls = [];
+  const state = (value, availableOptions = options) => ({ state: value, attributes: { options: availableOptions } });
+  const hass = {
+    states: { [entityId]: state('Schermo nero') },
+    callService: async (...args) => { calls.push(args); },
+  };
+  const buttons = () => [...card.shadowRoot.querySelectorAll('button')];
+  const pressed = () => buttons().map(b => b.getAttribute('aria-pressed') === 'true');
+  const update = (value, availableOptions) => { hass.states[entityId] = state(value, availableOptions); card.hass = hass; };
+  const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+  try {
+    card.hass = hass; // HA can assign hass before setConfig.
+    card.setConfig({ entity: entityId });
+    assert(buttons().length === 4, 'Quattro pulsanti');
+    assert(pressed()[3] && pressed().filter(Boolean).length === 1, 'Stato iniziale');
+    for (const [width, columns] of [[375, 1], [800, 2], [1440, 4]]) {
+      card.style.width = width + 'px';
+      assert(getComputedStyle(card.shadowRoot.querySelector('.grid')).gridTemplateColumns.split(' ').length === columns, 'Colonne a ' + width);
+      assert(card.scrollWidth === width, 'Nessun overflow a ' + width);
+    }
+    card.style.width = '';
+    buttons()[3].click();
+    assert(calls.length === 0, 'Nessuna chiamata per modalità attiva');
+    let finish;
+    hass.callService = (...args) => { calls.push(args); return new Promise(resolve => { finish = resolve; }); };
+    buttons()[1].focus();
+    buttons()[1].click();
+    buttons()[0].click();
+    assert(calls.length === 1 && buttons().every(b => b.disabled), 'Blocco durante richiesta');
+    assert(JSON.stringify(calls[0]) === JSON.stringify(['select', 'select_option', { entity_id: entityId, option: options[1] }]), 'Payload esatto');
+    assert(pressed()[3], 'Nessun aggiornamento ottimistico');
+    finish(); await flush();
+    assert(buttons().every(b => !b.disabled), 'Sblocco dopo risposta');
+    update(options[1]);
+    assert(pressed()[1], 'Aggiornamento dal backend');
+    update(options[0]);
+    assert(pressed()[0], 'Aggiornamento esterno');
+    update('unavailable');
+    assert(buttons().every(b => b.disabled) && !pressed().some(Boolean), 'Unavailable');
+    update('unknown');
+    assert(buttons().every(b => b.disabled), 'Unknown');
+    hass.states = {}; card.hass = hass;
+    assert(buttons().every(b => b.disabled) && card.shadowRoot.querySelector('.status').textContent.includes('non trovata'), 'Entità assente');
+    update(options[0], options.slice(0, 3));
+    assert(buttons()[3].disabled && !buttons()[1].disabled, 'Opzione mancante');
+    update('Altro', [...options, 'Altro']);
+    assert(!pressed().some(Boolean), 'Stato non mappato');
+    update(options[0]);
+    hass.callService = async () => { throw new Error('Permesso negato'); };
+    buttons()[2].click(); await flush();
+    assert(card.shadowRoot.querySelector('.status').textContent.includes('Permesso negato') && !buttons()[2].disabled, 'Errore servizio e possibilità di riprovare');
+    for (const config of [{ entity: 'input_select.test' }, { entity: entityId, modes: [] }, { entity: entityId, modes: options.map(() => ({ option: 'duplicate' })) }]) {
+      let thrown = false;
+      try { card.setConfig(config); } catch { thrown = true; }
+      assert(thrown, 'Validazione YAML');
+    }
+    const modes = options.map((label, i) => ({ label, option: String(i), description: '<img src=x onerror=alert(1)>' }));
+    card.setConfig({ entity: entityId, modes });
+    update('0', ['0', '1', '2', '3']);
+    assert(!card.shadowRoot.querySelector('img'), 'Stringhe YAML trattate come testo');
+    hass.callService = async (...args) => calls.push(args);
+    buttons()[2].click(); await flush();
+    assert(calls.at(-1)[2].option === '2', 'Mappatura option separata da label');
+    // Keep a usable demo after the tests.
+    card.setConfig({ entity: entityId });
+    update(options[3]);
+    hass.callService = async (domain, service, data) => update(data.option);
+    results.textContent = `PASS: ${count} verifiche. Demo interattiva con hass simulato.`;
+    document.documentElement.dataset.testResult = 'pass';
+  } catch (error) {
+    results.textContent = 'FAIL: ' + error.stack;
+    document.documentElement.dataset.testResult = 'fail';
+  }
+})();
+</script>
+</html>

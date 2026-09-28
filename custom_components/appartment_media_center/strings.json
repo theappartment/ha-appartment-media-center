@@ -1,0 +1,45 @@
+{
+  "title": "Appartment Media Center",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Collega il media center",
+        "description": "Inserisci URL e token API. Per il certificato autofirmato, copia il certificato pubblico sul server Home Assistant e indica il percorso PEM. Il token resta nel backend.",
+        "data": {
+          "url": "URL HTTPS del media center",
+          "token": "Token API locale",
+          "ca_file": "File CA/certificato PEM su Home Assistant (facoltativo)"
+        }
+      },
+      "reconfigure": {
+        "title": "Modifica connessione",
+        "description": "Inserisci URL e token API. Per il certificato autofirmato, copia il certificato pubblico sul server Home Assistant e indica il percorso PEM. Il token resta nel backend.",
+        "data": {
+          "url": "URL HTTPS del media center",
+          "token": "Token API locale",
+          "ca_file": "File CA/certificato PEM su Home Assistant (facoltativo)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Aggiorna credenziali",
+        "description": "Inserisci URL e token API. Per il certificato autofirmato, copia il certificato pubblico sul server Home Assistant e indica il percorso PEM. Il token resta nel backend.",
+        "data": {
+          "url": "URL HTTPS del media center",
+          "token": "Token API locale",
+          "ca_file": "File CA/certificato PEM su Home Assistant (facoltativo)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Token API non valido.",
+      "cannot_connect": "Connessione fallita. Verifica indirizzo, rete e certificato TLS.",
+      "invalid_config": "Usa un URL HTTPS senza percorso e un token non vuoto. Verifica il percorso del certificato PEM."
+    },
+    "abort": {
+      "already_configured": "Questo media center è già configurato.",
+      "wrong_device": "Il dispositivo non corrisponde a quello configurato.",
+      "reconfigure_successful": "Configurazione aggiornata.",
+      "reauth_successful": "Credenziali aggiornate."
+    }
+  }
+}
