@@ -3,7 +3,7 @@
 Pacchetto unico per **Home Assistant Core/base**, senza Supervisor e senza HACS:
 
 - configurazione da **Impostazioni → Dispositivi e servizi → Aggiungi integrazione**;
-- entità `select` creata dal componente, con le quattro modalità italiane;
+- entità `select` creata dal componente, con cinque modalità italiane, inclusa **Riunione**;
 - collegamento HTTPS autenticato all'API locale del media center Ubuntu;
 - card Lovelace responsive inclusa, tema scuro, selezione lime e frecce;
 - JavaScript servito e caricato automaticamente dal componente: **non occorre copiare nulla in `www` né registrare risorse**;
@@ -13,7 +13,7 @@ Il pacchetto comprende il controllo HA e la card. Il player video/foto e AirPlay
 
 ## Installazione
 
-[Scarica lo ZIP pronto per installazione](https://github.com/theappartment/ha-appartment-media-center/raw/refs/heads/main/appartment-media-center-ha-1.0.0.zip). Estrai il pacchetto e copia la cartella indicata sotto.
+[Scarica lo ZIP pronto per installazione](https://github.com/theappartment/ha-appartment-media-center/raw/refs/heads/main/appartment-media-center-ha-1.1.0.zip). Estrai il pacchetto e copia la cartella indicata sotto.
 
 1. Copia la cartella `custom_components/appartment_media_center` nella directory di configurazione di Home Assistant:
 
@@ -26,6 +26,13 @@ Il pacchetto comprende il controllo HA e la card. Il player video/foto e AirPlay
      const.py
      coordinator.py
      select.py
+     entity.py
+     number.py
+     switch.py
+     text.py
+     button.py
+     sensor.py
+     binary_sensor.py
      strings.json
      translations/it.json
      frontend/showreel-mode-card.js
@@ -40,6 +47,37 @@ Il pacchetto comprende il controllo HA e la card. Il player video/foto e AirPlay
 6. Ricarica completamente la pagina/app Home Assistant: il modulo della card viene registrato al caricamento dell'integrazione.
 
 Non aggiungere una sezione `appartment_media_center:` a `configuration.yaml`: la connessione si configura da interfaccia. Nessun riavvio di Ubuntu o del player è necessario.
+
+## Novità 1.1.0 e aggiornamento dalla 1.0.0
+
+Scarica lo ZIP 1.1.0, sostituisci **l'intera cartella** `custom_components/appartment_media_center`, riavvia Home Assistant e ricarica completamente il browser/app. Non eliminare l'integrazione: URL, token, certificato e ID del select restano validi. Le nuove entità compariranno sullo stesso dispositivo.
+
+La configurazione minima della card rimane identica. Se nel YAML avevi scritto una lista `modes` con quattro elementi, rimuovila per usare le cinque modalità predefinite oppure aggiungi `option: Riunione`.
+
+## Controlli inclusi
+
+Il dispositivo espone 17 entità utilizzabili anche nelle automazioni:
+
+| Tipo | Funzioni |
+| --- | --- |
+| Select | Automatico, Showreel video, Showreel foto, Schermo nero, Riunione |
+| Numero | Volume sistema, 0–100% |
+| Switch | Muto effettivo |
+| Testo | Titolo della schermata Riunione, fino a 160 caratteri |
+| 7 pulsanti | Libera schermo, aggiorna video, aggiorna foto, sincronizza contenuti, pagina precedente/successiva, chiudi presentazione |
+| 3 sensori | Contenuto effettivo sullo schermo, stato AirPlay, ultima attività con progresso |
+| 3 sensori diagnostici | Player pronto, ricevitore AirPlay pronto, presenza di problemi |
+
+La card trova le entità collegate tramite il registro di HA, anche dopo una rinomina: non devi aggiungere altri ID al YAML. Se disabiliti un'entità, il relativo controllo non sarà disponibile. Il rilevamento può richiedere il successivo aggiornamento, entro circa 5 secondi.
+
+- **Riunione** mostra titolo, logo e istruzioni AirPlay. Salvare il titolo modifica il messaggio ma non cambia automaticamente modalità.
+- **Libera schermo** interrompe AirPlay, chiude la presentazione e torna a Riunione. La card chiede conferma prima di inviarlo; nelle automazioni `button.press` lo esegue direttamente.
+- **Audio:** il volume agisce sull'uscita di sistema; non riattiva un filmato impostato muto dalla playlist. In Schermo nero, senza presentazione/AirPlay, il backend mantiene il muto anche se provi a spegnerlo.
+- **Presentazioni:** precedente, successiva e chiusura agiscono sul PDF/Slides già aperto. I controlli sono disabilitati quando non c'è una presentazione; per Slides, anche i comandi pagina durante AirPlay. Per caricare/aprire PDF, Slides e immagini usa il collegamento al pannello incluso nella card, con l'autenticazione del pannello. Il browser deve poter raggiungere l'indirizzo locale del media center e fidarsi del suo certificato: il collegamento non passa tramite HA.
+- **Attività:** aggiornamento feed e sincronizzazione avviano lavori in background. La card riporta avanzamento ed esito dal dispositivo; comando accettato non significa download completato. Una sincronizzazione completata può comunque lasciare una raccolta incompleta: verifica i dettagli nel pannello del media center.
+- **Diagnostica:** il colore delle modalità segue il select; gli indicatori mostrano separatamente AirPlay e contenuto effettivo. I dati del dispositivo si aggiornano ogni 5 secondi.
+
+Per mostrare soltanto le modalità, aggiungi `show_controls: false` alla card. I controlli estesi richiedono il select fornito da questa integrazione; con un select generico resta disponibile la selezione delle modalità.
 
 ## Collegamento e certificato HTTPS
 
@@ -64,7 +102,7 @@ type: custom:showreel-mode-card
 entity: select.appartment_ufficio_modalita_schermo
 ```
 
-L'ID è un esempio: dipende dal nome del dispositivo, da eventuali rinomine e da conflitti con entità esistenti. Le quattro modalità predefinite della card coincidono con quelle del select: non serve configurare `modes`.
+L'ID è un esempio: dipende dal nome del dispositivo, da eventuali rinomine e da conflitti con entità esistenti. Le cinque modalità predefinite della card coincidono con quelle del select: non serve configurare `modes`.
 
 | Card / select | Modalità API |
 | --- | --- |
@@ -72,10 +110,11 @@ L'ID è un esempio: dipende dal nome del dispositivo, da eventuali rinomine e da
 | Showreel video | `showreel` |
 | Showreel foto | `photos` |
 | Schermo nero | `black` |
+| Riunione | `meeting` |
 
 Il click chiama `select.select_option`; il componente invia `POST /api/v1/commands` con UUID, scadenza di 60 secondi e azione `set_mode`. Il verde segue lo stato restituito dal backend. Un esito HTTP 200 con comando rifiutato è trattato come errore.
 
-In caso di modalità esterna `meeting` o `custom`, il select mostra temporaneamente quel valore, nessuno dei quattro pulsanti è verde e puoi usare la card per tornare a una delle quattro modalità. Gli attributi dell'entità includono contenuto effettivo e stato AirPlay: AirPlay può essere attivo mentre la modalità selezionata resta uno showreel.
+In caso di schermata personalizzata, il select mostra temporaneamente `custom`; nessuno dei cinque pulsanti è verde e puoi usare la card per tornare a una modalità normale. Gli attributi dell'entità includono contenuto effettivo e stato AirPlay: AirPlay può essere attivo mentre la modalità selezionata resta uno showreel.
 
 ### Personalizzazione YAML
 
@@ -95,15 +134,18 @@ modes:
   - option: Schermo nero
     label: Schermo nero
     description: Standby silenzioso. AirPlay sempre disponibile.
+  - option: Riunione
+    label: Riunione
+    description: Schermata di benvenuto e condivisione AirPlay.
 ```
 
-Sono richieste quattro voci con `option` univoche; `label` e `description` sono facoltative. Il layout usa una colonna sotto 560 px di larghezza della card, due da 560 px e quattro da 1100 px. Per il layout orizzontale desktop assegna spazio sufficiente, ad esempio una vista di tipo **Pannello** con la sola card.
+Sono ammesse da una a otto voci con `option` univoche; `label` e `description` sono facoltative. Il layout usa una colonna sotto 560 px di larghezza della card, due da 560 px e fino a cinque da 1100 px. Per il layout orizzontale desktop assegna spazio sufficiente, ad esempio una vista di tipo **Pannello** con la sola card.
 
 ## Manutenzione
 
 - **URL/token/certificato cambiati:** menu ⋮ dell'integrazione → Riconfigura. Il dispositivo deve avere lo stesso `device_id`; per un dispositivo diverso aggiungi una nuova integrazione.
 - **Non disponibile:** verifica rete, certificato e media center. La riconnessione avviene con il polling. Token non valido avvia il flusso di riautenticazione.
-- **Custom element doesn't exist:** verifica che l'integrazione sia caricata e ricarica completamente la pagina. Il file è servito a `/appartment_media_center/showreel-mode-card.js?v=1.0.0`. Normalmente non aggiungerlo anche alle risorse Lovelace.
+- **Custom element doesn't exist:** verifica che l'integrazione sia caricata e ricarica completamente la pagina. Il file è servito a `/appartment_media_center/showreel-mode-card.js?v=1.1.0`. Normalmente non aggiungerlo anche alle risorse Lovelace.
 - **Aggiornamento:** sostituisci la cartella del componente, riavvia HA e ricarica il browser. La versione del modulo cambia insieme a `VERSION` in `const.py`.
 - **Rimozione:** elimina l'integrazione da Dispositivi e servizi, rimuovi le card dalle dashboard, elimina la cartella e riavvia HA. Il file frontend viene mantenuto durante il processo HA anche se si scarica l'ultima voce, per non interrompere altre card che lo usano.
 
@@ -113,7 +155,7 @@ La cartella statica espone esclusivamente il JS, non i file Python o la configur
 
 Versione minima prevista: **Home Assistant Core 2025.4**. La verifica automatizzata usa Core 2025.4.4 in un ambiente isolato e un server API simulato; non equivale a un'installazione sul tuo server HA. Non sono richiesti pacchetti Python aggiuntivi a runtime.
 
-Verifiche eseguite: **12 test Python superati**, inclusi TLS, token errato, comandi rifiutati con HTTP 200, payload/scadenza, quattro modalità, modalità esterne, identità dispositivo, config flow, caricamento e scaricamento. La card inclusa supera **26 verifiche in Chromium**. Eseguita inoltre una lettura dello stato dal media center reale con token e certificato TLS verificato, senza inviare comandi al dispositivo.
+Verifiche eseguite: **14 test Python superati**, inclusi TLS, token errato, comandi rifiutati con HTTP 200, payload/scadenza, cinque modalità, modalità esterne, identità dispositivo, config flow, caricamento e scaricamento. La card inclusa supera **45 verifiche in Chromium**. Eseguita inoltre una lettura dello stato dal media center reale con token e certificato TLS verificato, senza inviare comandi al dispositivo.
 
 Per riprodurre i test, in un ambiente separato con Python 3.13:
 

@@ -11,7 +11,8 @@ from .api import MediaCenterApi, make_ssl_context
 from .const import CARD_URL, DOMAIN
 from .coordinator import MediaCenterCoordinator
 
-PLATFORMS = [Platform.SELECT]
+PLATFORMS = [Platform.SELECT, Platform.NUMBER, Platform.SWITCH, Platform.TEXT,
+             Platform.BUTTON, Platform.SENSOR, Platform.BINARY_SENSOR]
 
 
 async def async_setup(hass, config):

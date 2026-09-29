@@ -14,23 +14,23 @@
   const assert = (value, message) => { if (!value) throw new Error(message); count++; };
   const card = document.querySelector('showreel-mode-card');
   const entityId = 'select.schermo';
-  const options = ['Automatico', 'Showreel video', 'Showreel foto', 'Schermo nero'];
+  const options = ['Automatico', 'Showreel video', 'Showreel foto', 'Schermo nero', 'Riunione'];
   let calls = [];
   const state = (value, availableOptions = options) => ({ state: value, attributes: { options: availableOptions } });
   const hass = {
     states: { [entityId]: state('Schermo nero') },
     callService: async (...args) => { calls.push(args); },
   };
-  const buttons = () => [...card.shadowRoot.querySelectorAll('button')];
+  const buttons = () => [...card.shadowRoot.querySelectorAll('.grid button')];
   const pressed = () => buttons().map(b => b.getAttribute('aria-pressed') === 'true');
   const update = (value, availableOptions) => { hass.states[entityId] = state(value, availableOptions); card.hass = hass; };
   const flush = () => new Promise(resolve => setTimeout(resolve, 0));
   try {
     card.hass = hass; // HA can assign hass before setConfig.
     card.setConfig({ entity: entityId });
-    assert(buttons().length === 4, 'Quattro pulsanti');
+    assert(buttons().length === 5, 'Cinque modalità');
     assert(pressed()[3] && pressed().filter(Boolean).length === 1, 'Stato iniziale');
-    for (const [width, columns] of [[375, 1], [800, 2], [1440, 4]]) {
+    for (const [width, columns] of [[375, 1], [800, 2], [1440, 5]]) {
       card.style.width = width + 'px';
       assert(getComputedStyle(card.shadowRoot.querySelector('.grid')).gridTemplateColumns.split(' ').length === columns, 'Colonne a ' + width);
       assert(card.scrollWidth === width, 'Nessun overflow a ' + width);
@@ -73,15 +73,71 @@
     }
     const modes = options.map((label, i) => ({ label, option: String(i), description: '<img src=x onerror=alert(1)>' }));
     card.setConfig({ entity: entityId, modes });
-    update('0', ['0', '1', '2', '3']);
+    update('0', ['0', '1', '2', '3', '4']);
     assert(!card.shadowRoot.querySelector('img'), 'Stringhe YAML trattate come testo');
     hass.callService = async (...args) => calls.push(args);
     buttons()[2].click(); await flush();
     assert(calls.at(-1)[2].option === '2', 'Mappatura option separata da label');
-    // Keep a usable demo after the tests.
+    // Rich controls discover the actual entity IDs supplied by the integration.
     card.setConfig({ entity: entityId });
-    update(options[3]);
-    hass.callService = async (domain, service, data) => update(data.option);
+    const controls = { volume: 'number.studio_volume', muted: 'switch.studio_muto', meeting_title: 'text.studio_titolo',
+      release_screen: 'button.studio_libera', refresh_showreel: 'button.studio_video', refresh_photos: 'button.studio_foto',
+      sync_content: 'button.studio_sync', next_page: 'button.studio_next', previous_page: 'button.studio_previous', close_presentation: 'button.studio_close' };
+    update('Riunione');
+    const attrs = hass.states[entityId].attributes;
+    Object.assign(attrs, { control_entities: controls, actual_content: 'meeting', airplay: 'idle', browser_ready: true,
+      receiver_ready: true, panel_url: 'https://appartment.local:8443', presentation: null, jobs: [], errors: {} });
+    for (const [key, id] of Object.entries(controls)) hass.states[id] = { state: key === 'volume' ? '45' : key === 'muted' ? 'off' : key === 'meeting_title' ? 'Benvenuti' : 'unknown', attributes: {} };
+    card.hass = hass;
+    assert(pressed()[4] && !card.shadowRoot.querySelector('.controls').hidden, 'Riunione e pannelli estesi');
+    const control = key => card.shadowRoot.querySelector(`[data-control="${key}"]`);
+    const volume = card.shadowRoot.querySelector('#volume');
+    hass.callService = async (...args) => { calls.push(args); };
+    volume.value = '72'; volume.dispatchEvent(new Event('change')); await flush();
+    assert(JSON.stringify(calls.at(-1)) === JSON.stringify(['number', 'set_value', {entity_id: controls.volume, value: 72}]), 'Payload volume');
+    control('muted').click(); await flush();
+    assert(calls.at(-1)[0] === 'switch' && calls.at(-1)[1] === 'turn_on', 'Attiva muto');
+    hass.states[controls.muted].state = 'on'; card.hass = hass;
+    control('muted').click(); await flush();
+    assert(calls.at(-1)[1] === 'turn_off', 'Disattiva muto');
+    const title = card.shadowRoot.querySelector('#meeting-title');
+    title.focus(); title.value = 'Riunione commerciale'; card.hass = hass;
+    assert(title.value === 'Riunione commerciale', 'Polling non cancella il titolo in modifica');
+    control('meeting_title').click(); await flush();
+    assert(calls.at(-1)[0] === 'text' && calls.at(-1)[2].value === 'Riunione commerciale', 'Payload titolo');
+    title.blur();
+    const oldConfirm = window.confirm;
+    window.confirm = () => false;
+    const before = calls.length; control('release_screen').click(); await flush();
+    assert(calls.length === before, 'Annullare Libera schermo non invia comandi');
+    window.confirm = () => true; control('release_screen').click(); await flush();
+    assert(calls.at(-1)[0] === 'button' && calls.at(-1)[2].entity_id === controls.release_screen, 'Conferma Libera schermo');
+    window.confirm = oldConfirm;
+    for (const key of ['refresh_showreel', 'refresh_photos', 'sync_content', 'next_page', 'previous_page', 'close_presentation']) {
+      control(key).click(); await flush();
+      assert(calls.at(-1)[1] === 'press' && calls.at(-1)[2].entity_id === controls[key], 'Azione ' + key);
+    }
+    hass.states[controls.next_page].state = 'unavailable'; card.hass = hass;
+    assert(control('next_page').disabled, 'Presentazione non disponibile');
+    attrs.jobs = [{kind: 'sync_content', status: 'running', progress: 42}]; card.hass = hass;
+    assert(card.shadowRoot.querySelector('.job-summary').textContent.includes('42%'), 'Progresso attività');
+    attrs.panel_url = 'javascript:alert(1)'; card.hass = hass;
+    assert(card.shadowRoot.querySelector('.panel-link').hidden, 'URL pannello non sicuro nascosto');
+    hass.states[entityId].state = 'unavailable'; card.hass = hass;
+    assert(volume.disabled && [...card.shadowRoot.querySelectorAll('[data-control]')].every(b => b.disabled), 'Offline blocca controlli');
+    hass.states[entityId].state = 'Riunione'; attrs.panel_url = 'https://appartment.local:8443'; card.hass = hass;
+    card.setConfig({ entity: entityId, show_controls: false });
+    assert(card.shadowRoot.querySelector('.controls').hidden, 'Layout compatto configurabile');
+    // Keep a usable rich demo after the tests.
+    card.setConfig({ entity: entityId });
+    attrs.jobs = [{kind: 'refresh_photos', status: 'succeeded', progress: 100}];
+    hass.callService = async (domain, service, data) => {
+      if (domain === 'select') { hass.states[entityId].state = data.option; attrs.actual_content = {Automatico:'showreel', 'Showreel video':'showreel', 'Showreel foto':'photos', 'Schermo nero':'black', Riunione:'meeting'}[data.option]; }
+      if (domain === 'number' || domain === 'text') hass.states[data.entity_id].state = String(data.value);
+      if (domain === 'switch') hass.states[data.entity_id].state = service === 'turn_on' ? 'on' : 'off';
+      card.hass = hass;
+    };
+    card.hass = hass;
     results.textContent = `PASS: ${count} verifiche. Demo interattiva con hass simulato.`;
     document.documentElement.dataset.testResult = 'pass';
   } catch (error) {

@@ -33,10 +33,13 @@ class MediaCenterCoordinator(DataUpdateCoordinator):
                 raise UpdateFailed(str(err)) from err
 
     async def async_select_mode(self, mode):
+        await self.async_command("set_mode", {"mode": mode})
+
+    async def async_command(self, action, args):
         async with self._lock:
             try:
                 self._check_identity(await self.api.status())
-                data = self._check_identity(await self.api.set_mode(mode))
+                data = self._check_identity(await self.api.command(action, args))
             except ApiError as err:
                 raise HomeAssistantError(str(err)) from err
             self.async_set_updated_data(data)

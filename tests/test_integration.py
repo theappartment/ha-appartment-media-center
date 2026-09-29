@@ -26,6 +26,13 @@ from custom_components.appartment_media_center.const import CARD_URL, MODES
 from custom_components.appartment_media_center.coordinator import MediaCenterCoordinator
 from custom_components.appartment_media_center.select import MediaCenterMode
 from custom_components.appartment_media_center.config_flow import MediaCenterConfigFlow
+from custom_components.appartment_media_center.number import MediaCenterVolume
+from custom_components.appartment_media_center.switch import MediaCenterMute
+from custom_components.appartment_media_center.text import MediaCenterMeetingTitle
+from custom_components.appartment_media_center.button import MediaCenterButton
+from custom_components.appartment_media_center.sensor import MediaCenterSensor
+from custom_components.appartment_media_center.binary_sensor import MediaCenterHealth
+from homeassistant.helpers import entity_registry as er
 
 
 @pytest.fixture
@@ -44,7 +51,7 @@ async def device(tmp_path):
     key_file.write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(cert_file, key_file)
-    state = {"device_id": "test-device", "receiver_name": "Studio", "requested_mode": "auto", "airplay": "idle"}
+    state = {"device_id": "test-device", "receiver_name": "Studio", "requested_mode": "auto", "airplay": "idle", "volume": 45, "muted": False, "meeting_title": "Benvenuti", "presentation": None, "jobs": [], "errors": {}, "browser_ready": True, "receiver_ready": True}
     control = {"result": "applied", "calls": []}
 
     async def handler(request):
@@ -55,7 +62,13 @@ async def device(tmp_path):
         body = await request.json()
         control["calls"].append(body)
         if control["result"] == "applied":
-            state["requested_mode"] = body["args"]["mode"]
+            action, args = body['action'], body['args']
+            if action == 'set_mode': state['requested_mode'] = args['mode']
+            elif action in ('set_audio', 'configure'): state.update(args)
+            elif action == 'release_screen': state.update(requested_mode='meeting', presentation=None)
+            elif action == 'close_presentation': state['presentation'] = None
+            elif action in ('refresh_showreel', 'refresh_photos', 'sync_content'):
+                state['jobs'].append({'id': 'test-job', 'kind': action, 'status': 'queued', 'progress': 0})
         return web.json_response({"status": control["result"], "state": state})
 
     app = web.Application()
@@ -92,7 +105,7 @@ async def test_https_api(device):
     for mode in MODES.values():
         assert (await api.set_mode(mode))['requested_mode'] == mode
     calls = control['calls']
-    assert len({call['id'] for call in calls}) == 4
+    assert len({call['id'] for call in calls}) == 5
     for call in calls:
         assert call['action'] == 'set_mode'
         remaining = datetime.fromisoformat(call['expires_at']) - datetime.now(timezone.utc)
@@ -125,7 +138,7 @@ async def test_select_state_and_external_modes(hass, device):
         await select.async_select_option(label)
         assert state['requested_mode'] == mode
         assert select.current_option == label
-    for mode in ['meeting', 'custom']:
+    for mode in ['custom']:
         state['requested_mode'] = mode
         coordinator.async_set_updated_data(await api.status())
         assert select.current_option == mode and mode in select.options
@@ -208,3 +221,69 @@ async def test_reconfigure_identity(hass, device):
         state['device_id'] = 'other-device'
         result = await flow.async_step_reconfigure(entry.data)
         assert result['reason'] == 'wrong_device'
+
+
+async def test_rich_controls_and_jobs(hass, device):
+    api, state, control, _ = device
+    coordinator = MediaCenterCoordinator(hass, api, 'test-device')
+    coordinator.async_set_updated_data(await api.status())
+    entry = SimpleNamespace(unique_id='test-device', title='Studio', data={'url': api.url})
+    volume = MediaCenterVolume(coordinator, entry)
+    mute = MediaCenterMute(coordinator, entry)
+    title = MediaCenterMeetingTitle(coordinator, entry)
+    assert volume.native_value == 45
+    await volume.async_set_native_value(72)
+    assert volume.native_value == 72 and control['calls'][-1]['args'] == {'volume': 72}
+    for invalid in [-1, 101, 1.5, float('nan')]:
+        with pytest.raises(HomeAssistantError):
+            await volume.async_set_native_value(invalid)
+    await mute.async_turn_on()
+    assert mute.is_on and control['calls'][-1]['args'] == {'muted': True}
+    await mute.async_turn_off()
+    assert not mute.is_on
+    await title.async_set_value('Benvenuti alla riunione')
+    assert title.native_value == 'Benvenuti alla riunione'
+    assert control['calls'][-1]['action'] == 'configure'
+    with pytest.raises(HomeAssistantError):
+        await title.async_set_value('x' * 161)
+    for key in ['refresh_showreel', 'refresh_photos', 'sync_content']:
+        await MediaCenterButton(coordinator, entry, key).async_press()
+        job = MediaCenterSensor(coordinator, entry, 'job')
+        assert job.native_value == 'queued'  # Accepted is not completed.
+        assert job.extra_state_attributes['kind'] == key
+    next_page = MediaCenterButton(coordinator, entry, 'next_page')
+    assert not next_page.available
+    with pytest.raises(HomeAssistantError):
+        await next_page.async_press()
+    state['presentation'] = {'kind': 'slides', 'page': 1}
+    state['airplay'] = 'video'
+    coordinator.async_set_updated_data(await api.status())
+    assert not next_page.available
+    state['airplay'] = 'idle'
+    coordinator.async_set_updated_data(await api.status())
+    assert next_page.available
+    await next_page.async_press()
+    assert control['calls'][-1]['args'] == {'operation': 'next'}
+    await MediaCenterButton(coordinator, entry, 'release_screen').async_press()
+    assert MediaCenterMode(coordinator, entry).current_option == 'Riunione'
+    assert coordinator.data['presentation'] is None
+    assert MediaCenterHealth(coordinator, entry, 'browser_ready', 'Player').is_on
+    assert not MediaCenterHealth(coordinator, entry, 'errors', 'Problemi').is_on
+    coordinator.last_update_success = False
+    assert not volume.available and not mute.available and not next_page.available
+
+
+async def test_control_entity_registry_renames(hass, device):
+    api, _, _, _ = device
+    coordinator = MediaCenterCoordinator(hass, api, 'test-device')
+    coordinator.async_set_updated_data(await api.status())
+    entry = SimpleNamespace(unique_id='test-device', title='Studio', data={'url': api.url})
+    select = MediaCenterMode(coordinator, entry)
+    select.hass = hass
+    registry = er.async_get(hass)
+    await registry.async_load()
+    volume = registry.async_get_or_create('number', 'appartment_media_center', 'test-device_volume')
+    assert select.extra_state_attributes['control_entities']['volume'] == volume.entity_id
+    registry.async_update_entity(volume.entity_id, new_entity_id='number.volume_rinominato')
+    assert select.extra_state_attributes['control_entities']['volume'] == 'number.volume_rinominato'
+    assert select.extra_state_attributes['panel_url'] == api.url

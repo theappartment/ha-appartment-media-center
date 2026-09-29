@@ -69,10 +69,13 @@ class MediaCenterApi:
         return validate_state(await self._request("GET", "status"))
 
     async def set_mode(self, mode):
+        return await self.command("set_mode", {"mode": mode})
+
+    async def command(self, action, args):
         result = await self._request("POST", "commands", {
             "id": str(uuid4()),
             "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=60)).isoformat(),
-            "action": "set_mode", "args": {"mode": mode},
+            "action": action, "args": args,
         })
         if result.get("status") != "applied":
             raise ApiError("Il media center non ha applicato il comando")
