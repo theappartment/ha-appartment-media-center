@@ -80,7 +80,7 @@
     assert(calls.at(-1)[2].option === '2', 'Mappatura option separata da label');
     // Rich controls discover the actual entity IDs supplied by the integration.
     card.setConfig({ entity: entityId });
-    const controls = { volume: 'number.studio_volume', muted: 'switch.studio_muto', meeting_title: 'text.studio_titolo',
+    const controls = { dismiss_keyring_prompt: 'button.studio_portachiavi', volume: 'number.studio_volume', muted: 'switch.studio_muto', meeting_title: 'text.studio_titolo',
       release_screen: 'button.studio_libera', refresh_showreel: 'button.studio_video', refresh_photos: 'button.studio_foto',
       sync_content: 'button.studio_sync', next_page: 'button.studio_next', previous_page: 'button.studio_previous', close_presentation: 'button.studio_close' };
     update('Riunione');
@@ -113,12 +113,14 @@
     window.confirm = () => true; control('release_screen').click(); await flush();
     assert(calls.at(-1)[0] === 'button' && calls.at(-1)[2].entity_id === controls.release_screen, 'Conferma Libera schermo');
     window.confirm = oldConfirm;
-    for (const key of ['refresh_showreel', 'refresh_photos', 'sync_content', 'next_page', 'previous_page', 'close_presentation']) {
+    for (const key of ['dismiss_keyring_prompt', 'refresh_showreel', 'refresh_photos', 'sync_content', 'next_page', 'previous_page', 'close_presentation']) {
       control(key).click(); await flush();
       assert(calls.at(-1)[1] === 'press' && calls.at(-1)[2].entity_id === controls[key], 'Azione ' + key);
     }
     hass.states[controls.next_page].state = 'unavailable'; card.hass = hass;
     assert(control('next_page').disabled, 'Presentazione non disponibile');
+    hass.states[controls.dismiss_keyring_prompt].state = 'unavailable'; card.hass = hass;
+    assert(control('dismiss_keyring_prompt').disabled, 'Portachiavi disabilitato su backend precedente');
     attrs.jobs = [{kind: 'sync_content', status: 'running', progress: 42}]; card.hass = hass;
     assert(card.shadowRoot.querySelector('.job-summary').textContent.includes('42%'), 'Progresso attività');
     attrs.panel_url = 'javascript:alert(1)'; card.hass = hass;

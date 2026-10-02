@@ -13,7 +13,7 @@ Il pacchetto comprende il controllo HA e la card. Il player video/foto e AirPlay
 
 ## Installazione
 
-[Scarica lo ZIP pronto per installazione](https://github.com/theappartment/ha-appartment-media-center/raw/refs/heads/main/appartment-media-center-ha-1.1.0.zip). Estrai il pacchetto e copia la cartella indicata sotto.
+[Scarica lo ZIP pronto per installazione](https://github.com/theappartment/ha-appartment-media-center/raw/refs/heads/main/appartment-media-center-ha-1.2.0.zip). Estrai il pacchetto e copia la cartella indicata sotto.
 
 1. Copia la cartella `custom_components/appartment_media_center` nella directory di configurazione di Home Assistant:
 
@@ -46,7 +46,30 @@ Il pacchetto comprende il controllo HA e la card. Il player video/foto e AirPlay
 5. Inserisci URL, token API locale e, se necessario, percorso del certificato pubblico PEM.
 6. Ricarica completamente la pagina/app Home Assistant: il modulo della card viene registrato al caricamento dell'integrazione.
 
-Non aggiungere una sezione `appartment_media_center:` a `configuration.yaml`: la connessione si configura da interfaccia. Nessun riavvio di Ubuntu o del player è necessario.
+Non aggiungere una sezione `appartment_media_center:` a `configuration.yaml`: la connessione si configura da interfaccia. Per la sola integrazione HA non serve riavviare Ubuntu o il player; il nuovo comando portachiavi richiede anche l’aggiornamento backend descritto sotto.
+
+## Novità 1.2.0 — Chiudi richiesta portachiavi
+
+La card include **Chiudi richiesta portachiavi**, disponibile anche come entità `button`.
+Annulla le finestre di autenticazione GCR visibili sul desktop Ubuntu X11, come il
+messaggio “Default keyring is locked”. Non inserisce password, non sblocca o elimina
+il portachiavi e non interrompe video, AirPlay o presentazioni. Se non ci sono
+finestre GCR aperte, il comando termina senza modifiche. L'app che richiede lo
+sblocco potrebbe ripresentare la finestra: questo è un comando di chiusura manuale.
+
+**Aggiornare entrambi i lati:**
+
+1. Sul media center Ubuntu applica l'aggiornamento descritto in
+   [ubuntu/README.md](ubuntu/README.md), poi riavvia il servizio media center.
+2. Sostituisci `custom_components/appartment_media_center` con la cartella dello ZIP
+   1.2.0 e riavvia Home Assistant. Non eliminare l'integrazione esistente.
+3. Ricarica completamente il browser. Se hai registrato manualmente la risorsa
+   della card, aggiorna il suo URL a
+   `/appartment_media_center/showreel-mode-card.js?v=1.2.0` (Modulo JavaScript).
+
+Non occorrono modifiche al YAML. Il pulsante si trova in **Contenuti e stato**;
+con `show_controls: false` non viene mostrato. Sul backend precedente rimane
+non disponibile finché non viene installato l'aggiornamento Ubuntu.
 
 ## Novità 1.1.0 e aggiornamento dalla 1.0.0
 
@@ -56,7 +79,7 @@ La configurazione minima della card rimane identica. Se nel YAML avevi scritto u
 
 ## Controlli inclusi
 
-Il dispositivo espone 17 entità utilizzabili anche nelle automazioni:
+Il dispositivo espone 18 entità utilizzabili anche nelle automazioni:
 
 | Tipo | Funzioni |
 | --- | --- |
@@ -64,7 +87,7 @@ Il dispositivo espone 17 entità utilizzabili anche nelle automazioni:
 | Numero | Volume sistema, 0–100% |
 | Switch | Muto effettivo |
 | Testo | Titolo della schermata Riunione, fino a 160 caratteri |
-| 7 pulsanti | Libera schermo, aggiorna video, aggiorna foto, sincronizza contenuti, pagina precedente/successiva, chiudi presentazione |
+| 8 pulsanti | Libera schermo, aggiorna video, aggiorna foto, sincronizza contenuti, pagina precedente/successiva, chiudi presentazione, chiudi richiesta portachiavi |
 | 3 sensori | Contenuto effettivo sullo schermo, stato AirPlay, ultima attività con progresso |
 | 3 sensori diagnostici | Player pronto, ricevitore AirPlay pronto, presenza di problemi |
 
@@ -145,7 +168,7 @@ Sono ammesse da una a otto voci con `option` univoche; `label` e `description` s
 
 - **URL/token/certificato cambiati:** menu ⋮ dell'integrazione → Riconfigura. Il dispositivo deve avere lo stesso `device_id`; per un dispositivo diverso aggiungi una nuova integrazione.
 - **Non disponibile:** verifica rete, certificato e media center. La riconnessione avviene con il polling. Token non valido avvia il flusso di riautenticazione.
-- **Custom element doesn't exist:** verifica che l'integrazione sia caricata e ricarica completamente la pagina. Il file è servito a `/appartment_media_center/showreel-mode-card.js?v=1.1.0`. Normalmente non aggiungerlo anche alle risorse Lovelace.
+- **Custom element doesn't exist:** verifica che l'integrazione sia caricata e ricarica completamente la pagina. Il file è servito a `/appartment_media_center/showreel-mode-card.js?v=1.2.0`. Normalmente non aggiungerlo anche alle risorse Lovelace.
 - **Aggiornamento:** sostituisci la cartella del componente, riavvia HA e ricarica il browser. La versione del modulo cambia insieme a `VERSION` in `const.py`.
 - **Rimozione:** elimina l'integrazione da Dispositivi e servizi, rimuovi le card dalle dashboard, elimina la cartella e riavvia HA. Il file frontend viene mantenuto durante il processo HA anche se si scarica l'ultima voce, per non interrompere altre card che lo usano.
 
@@ -155,7 +178,7 @@ La cartella statica espone esclusivamente il JS, non i file Python o la configur
 
 Versione minima prevista: **Home Assistant Core 2025.4**. La verifica automatizzata usa Core 2025.4.4 in un ambiente isolato e un server API simulato; non equivale a un'installazione sul tuo server HA. Non sono richiesti pacchetti Python aggiuntivi a runtime.
 
-Verifiche eseguite: **14 test Python superati**, inclusi TLS, token errato, comandi rifiutati con HTTP 200, payload/scadenza, cinque modalità, modalità esterne, identità dispositivo, config flow, caricamento e scaricamento. La card inclusa supera **45 verifiche in Chromium**. Eseguita inoltre una lettura dello stato dal media center reale con token e certificato TLS verificato, senza inviare comandi al dispositivo.
+Verifiche eseguite: **17 test Python superati**, inclusi TLS, token errato, comandi rifiutati con HTTP 200, payload/scadenza, cinque modalità, modalità esterne, identità dispositivo, config flow, caricamento e scaricamento. La card inclusa supera **47 verifiche in Chromium**. Per la versione 1.2.0 sono stati verificati anche la disponibilità del nuovo pulsante, gli errori backend e l’installazione Ubuntu idempotente. Il comando è stato provato sul desktop Ubuntu reale con una finestra GCR di test: annullamento riuscito, seconda esecuzione senza finestre senza effetti. I test backend del nuovo comando e quelli API/controller passano (23 complessivi).
 
 Per riprodurre i test, in un ambiente separato con Python 3.13:
 

@@ -20,6 +20,8 @@ class MediaCenterButton(MediaCenterEntity, ButtonEntity):
         if not super().available:
             return False
         data = self.coordinator.data
+        if self.action == "dismiss_keyring_prompt":
+            return self.action in data.get("capabilities", [])
         if self.action in ("presentation_control", "close_presentation"):
             presentation = data.get("presentation")
             if not presentation:

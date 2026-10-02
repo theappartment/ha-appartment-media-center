@@ -287,3 +287,26 @@ async def test_control_entity_registry_renames(hass, device):
     registry.async_update_entity(volume.entity_id, new_entity_id='number.volume_rinominato')
     assert select.extra_state_attributes['control_entities']['volume'] == 'number.volume_rinominato'
     assert select.extra_state_attributes['panel_url'] == api.url
+
+
+async def test_keyring_capability_and_errors(hass, device):
+    api, state, control, _ = device
+    coordinator = MediaCenterCoordinator(hass, api, 'test-device')
+    coordinator.async_set_updated_data(await api.status())
+    entry = SimpleNamespace(unique_id='test-device', title='Studio', data={'url': api.url})
+    button = MediaCenterButton(coordinator, entry, 'dismiss_keyring_prompt')
+    assert not button.available
+    with pytest.raises(HomeAssistantError):
+        await button.async_press()
+    assert not control['calls']
+    state['capabilities'] = ['dismiss_keyring_prompt']
+    coordinator.async_set_updated_data(await api.status())
+    assert button.available
+    await button.async_press()
+    assert control['calls'][-1]['action'] == 'dismiss_keyring_prompt'
+    assert control['calls'][-1]['args'] == {}
+    control['result'] = 'failed'
+    with pytest.raises(HomeAssistantError):
+        await button.async_press()
+    coordinator.last_update_success = False
+    assert not button.available

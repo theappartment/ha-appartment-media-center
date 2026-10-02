@@ -154,6 +154,7 @@ class ShowreelModeCard extends HTMLElement {
             <div class="row"><button type="button" data-control="refresh_showreel">Aggiorna video</button>
               <button type="button" data-control="refresh_photos">Aggiorna foto</button>
               <button type="button" data-control="sync_content">Sincronizza contenuti</button></div>
+            <div class="row"><button type="button" data-control="dismiss_keyring_prompt">Chiudi richiesta portachiavi</button></div>
             <p class="job-summary" role="status" aria-live="polite"></p>
             <p class="device-errors"></p>
           </section>

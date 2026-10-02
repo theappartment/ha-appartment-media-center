@@ -1,6 +1,6 @@
 """Constants for the bundled integration."""
 DOMAIN = "appartment_media_center"
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 CARD_URL = f"/appartment_media_center/showreel-mode-card.js?v={VERSION}"
 MODES = {
     "Automatico": "auto",
@@ -12,6 +12,7 @@ MODES = {
 
 # key: (name, action, arguments, icon)
 BUTTONS = {
+    "dismiss_keyring_prompt": ("Chiudi richiesta portachiavi", "dismiss_keyring_prompt", {}, "mdi:window-close"),
     "release_screen": ("Libera schermo", "release_screen", {}, "mdi:cast-off"),
     "refresh_showreel": ("Aggiorna video", "refresh_showreel", {}, "mdi:movie-refresh"),
     "refresh_photos": ("Aggiorna foto", "refresh_photos", {}, "mdi:image-refresh"),
