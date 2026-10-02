@@ -1,6 +1,6 @@
 """Constants for the bundled integration."""
 DOMAIN = "appartment_media_center"
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 CARD_URL = f"/appartment_media_center/showreel-mode-card.js?v={VERSION}"
 MODES = {
     "Automatico": "auto",

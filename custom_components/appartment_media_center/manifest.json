@@ -1,7 +1,7 @@
 {
   "domain": "appartment_media_center",
   "name": "Appartment Media Center",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "config_flow": true,
   "dependencies": [
     "frontend",

@@ -21,13 +21,17 @@ Non copia configurazioni, token o certificati e non riavvia da solo il servizio.
 
 Requisiti: backend con le modalità Riunione/presentazioni già installate, sessione
 Ubuntu **X11**, `python-xlib` (già presente in requirements.lock del media center),
-GCR `/usr/libexec/gcr-prompter` oppure `/usr/lib/gcr/gcr-prompter` e variabili
+Python di sistema `/usr/bin/python3` con `python3-gi` e `gir1.2-atspi-2.0`,
+servizio di accessibilità della sessione GNOME, GCR `/usr/libexec/gcr-prompter` oppure `/usr/lib/gcr/gcr-prompter` e variabili
 `DISPLAY`/`XAUTHORITY` ereditate dal servizio utente della sessione grafica.
-Wayland e le finestre interne di GNOME Shell non sono supportati.
+La sessione X11 è richiesta. Le richieste interne di GNOME Shell sono supportate
+tramite AT-SPI (dialogo portachiavi/keyring e pulsante Cancel/Annulla).
 
 Il comando controlla classe della finestra, eseguibile e proprietario del processo;
 invia `WM_DELETE_WINDOW` solo alle finestre GCR visibili e attende che spariscano.
-Non manda tasti o clic globali e non termina il demone del portachiavi.
+Per GNOME Shell usa l’azione accessibile del pulsante; se non esposta, un clic
+nel centro dei suoi limiti correnti, dopo aver riconosciuto il dialogo portachiavi.
+Non invia password e non termina il demone del portachiavi.
 Il processo di controllo ha un timeout di 5 secondi. Un errore nella connessione X11
 o nella chiusura viene restituito a HA; nessuna finestra trovata è un esito valido.
 La chiusura non impedisce all'applicazione di chiedere di nuovo lo sblocco.
@@ -39,3 +43,6 @@ Il risultato contiene `closed` (numero di finestre chiuse); argomenti aggiuntivi
 sono rifiutati. ID duplicati non rieseguono la chiusura.
 
 Protocollo finestra: [specifiche X11/EWMH](https://specifications.freedesktop.org/wm/latest-single/).
+
+Dalla 1.2.0 già attiva è sufficiente rieseguire lo script di aggiornamento:
+non serve riavviare il servizio perché gli helper vengono caricati a ogni comando.

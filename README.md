@@ -13,7 +13,7 @@ Il pacchetto comprende il controllo HA e la card. Il player video/foto e AirPlay
 
 ## Installazione
 
-[Scarica lo ZIP pronto per installazione](https://github.com/theappartment/ha-appartment-media-center/raw/refs/heads/main/appartment-media-center-ha-1.2.0.zip). Estrai il pacchetto e copia la cartella indicata sotto.
+[Scarica lo ZIP pronto per installazione](https://github.com/theappartment/ha-appartment-media-center/raw/refs/heads/main/appartment-media-center-ha-1.2.1.zip). Estrai il pacchetto e copia la cartella indicata sotto.
 
 1. Copia la cartella `custom_components/appartment_media_center` nella directory di configurazione di Home Assistant:
 
@@ -48,6 +48,19 @@ Il pacchetto comprende il controllo HA e la card. Il player video/foto e AirPlay
 
 Non aggiungere una sezione `appartment_media_center:` a `configuration.yaml`: la connessione si configura da interfaccia. Per la sola integrazione HA non serve riavviare Ubuntu o il player; il nuovo comando portachiavi richiede anche l’aggiornamento backend descritto sotto.
 
+## Correzione 1.2.1 — richiesta mostrata da GNOME Shell
+
+Supporta anche la finestra del portachiavi mostrata da GNOME Shell, non elencata
+come finestra GCR X11 separata. Riconosce il dialogo visibile e il suo pulsante
+Cancel/Annulla tramite accessibilità; non legge il contenuto dei campi password.
+Su GNOME Shell senza azioni accessibili usa la posizione attuale del pulsante
+individuato, mai coordinate fisse. Verificato sulla finestra reale e attraverso
+l'API autenticata usata da HA.
+
+Se hai già la 1.2.0 e il servizio Ubuntu aggiornato in esecuzione, basta rieseguire
+l'installatore Ubuntu della 1.2.1: i file di chiusura sono caricati a ogni pressione,
+quindi non occorre riavviare Ubuntu, il player o Home Assistant.
+
 ## Novità 1.2.0 — Chiudi richiesta portachiavi
 
 La card include **Chiudi richiesta portachiavi**, disponibile anche come entità `button`.
@@ -65,7 +78,7 @@ sblocco potrebbe ripresentare la finestra: questo è un comando di chiusura manu
    1.2.0 e riavvia Home Assistant. Non eliminare l'integrazione esistente.
 3. Ricarica completamente il browser. Se hai registrato manualmente la risorsa
    della card, aggiorna il suo URL a
-   `/appartment_media_center/showreel-mode-card.js?v=1.2.0` (Modulo JavaScript).
+   `/appartment_media_center/showreel-mode-card.js?v=1.2.1` (Modulo JavaScript).
 
 Non occorrono modifiche al YAML. Il pulsante si trova in **Contenuti e stato**;
 con `show_controls: false` non viene mostrato. Sul backend precedente rimane
@@ -168,7 +181,7 @@ Sono ammesse da una a otto voci con `option` univoche; `label` e `description` s
 
 - **URL/token/certificato cambiati:** menu ⋮ dell'integrazione → Riconfigura. Il dispositivo deve avere lo stesso `device_id`; per un dispositivo diverso aggiungi una nuova integrazione.
 - **Non disponibile:** verifica rete, certificato e media center. La riconnessione avviene con il polling. Token non valido avvia il flusso di riautenticazione.
-- **Custom element doesn't exist:** verifica che l'integrazione sia caricata e ricarica completamente la pagina. Il file è servito a `/appartment_media_center/showreel-mode-card.js?v=1.2.0`. Normalmente non aggiungerlo anche alle risorse Lovelace.
+- **Custom element doesn't exist:** verifica che l'integrazione sia caricata e ricarica completamente la pagina. Il file è servito a `/appartment_media_center/showreel-mode-card.js?v=1.2.1`. Normalmente non aggiungerlo anche alle risorse Lovelace.
 - **Aggiornamento:** sostituisci la cartella del componente, riavvia HA e ricarica il browser. La versione del modulo cambia insieme a `VERSION` in `const.py`.
 - **Rimozione:** elimina l'integrazione da Dispositivi e servizi, rimuovi le card dalle dashboard, elimina la cartella e riavvia HA. Il file frontend viene mantenuto durante il processo HA anche se si scarica l'ultima voce, per non interrompere altre card che lo usano.
 

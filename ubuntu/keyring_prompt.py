@@ -1,6 +1,7 @@
 """Cancel visible GCR dialogs on the local X11 session without touching secrets."""
 import json
 import os
+import subprocess
 from pathlib import Path
 import time
 from Xlib import X, error
@@ -70,7 +71,11 @@ def dismiss():
 
 if __name__ == '__main__':
     try:
-        print(json.dumps(dismiss()))
+        shell = subprocess.run(
+            ['/usr/bin/python3', str(Path(__file__).with_name('keyring_shell.py'))],
+            capture_output=True, text=True, timeout=3, check=True)
+        closed = json.loads(shell.stdout)['closed']
+        print(json.dumps({'closed': closed + dismiss()['closed']}))
     except Exception:
         # Do not expose desktop/window metadata through the API or logs.
         raise SystemExit(1)

@@ -51,6 +51,7 @@ def update(root):
     s = replace_once(sources['hardware.py'], 'import signal\n', 'import signal\nimport sys\n')
     updated['hardware.py'] = replace_once(s, '    async def browser(self):\n', HARDWARE_METHOD + '    async def browser(self):\n')
     updated['keyring_prompt.py'] = Path(__file__).with_name('keyring_prompt.py').read_text()
+    updated['keyring_shell.py'] = Path(__file__).with_name('keyring_shell.py').read_text()
     changes = {}
     for name, content in updated.items():
         compile(content, name, 'exec')
